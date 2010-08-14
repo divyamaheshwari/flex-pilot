@@ -24,6 +24,7 @@ package org.flex_pilot {
   import flash.events.TextEvent;
   import flash.external.ExternalInterface;
   import flash.text.StaticText;
+  import flash.text.TextField;
   import flash.utils.*;
   
   import mx.controls.Button;
@@ -99,6 +100,9 @@ package org.flex_pilot {
 	private static var uicItems:Array=[];
 	private static var sliderItems:Array=[];
 	
+	private static var mutedItems:Array=[];
+	
+	
 	
     private static var running:Boolean = false;
 	
@@ -111,10 +115,12 @@ package org.flex_pilot {
 	
 	public static var test:Object;
 	
-	public static var typesAllowed:Array;
+	private static var defTypesAllowed:Array;
+	
+	private static var typesAllowed:Array;
 	
 	
-	typesAllowed=[['change' , [Slider,ListBase , ComboBox ,DateChooser , DateField]] ,
+	defTypesAllowed=[['change' , [Slider,ListBase , ComboBox ,DateChooser , DateField]] ,
 		['columnStretch' , [DataGrid]] ,
 		['headerRelease', [DataGrid]] ,
 		['itemEditEnd' , [DataGrid]] ,
@@ -125,7 +131,7 @@ package org.flex_pilot {
 	
 	
 	FP::complete  {
-	typesAllowed=[['change' , [Slider,ListBase , ComboBox , AdvancedListBase,DateChooser , DateField]] ,
+	defTypesAllowed=[['change' , [Slider,ListBase , ComboBox , AdvancedListBase,DateChooser , DateField]] ,
 		['columnStretch' , [DataGrid , AdvancedDataGridBaseEx]] ,
 		['headerRelease', [DataGrid , AdvancedDataGridBaseEx]] ,
 		['itemEditEnd' , [DataGrid , AdvancedDataGridBaseEx]] ,
@@ -138,7 +144,7 @@ package org.flex_pilot {
 	];
 	}
 	
-	
+	typesAllowed=defTypesAllowed;
 		
 	
 	
@@ -155,7 +161,6 @@ package org.flex_pilot {
     public static function start():void {
       // Stop the explorer if it's going
       FPExplorer.stop();
-	  
 	  
 	  for each(var elem:* in typesAllowed){
 		  
@@ -455,6 +460,128 @@ package org.flex_pilot {
       
 	  
     }
+	
+	
+	
+	public static function muteItem(item:* , eventType:String , strict:Boolean=false):void{
+		// if eventType is set to 'all' then the item itself as a whole will be muted during the recording
+		
+		
+		var targ:*=FPLocator.lookupDisplayObject({'chain':item});
+		
+		
+		switch(eventType){
+			case 'all':
+				
+				
+				for each(var elem:* in typesAllowed){
+				
+				for each(var type:* in elem[1]){
+					if(targ is type){
+						targ.removeEventListener(elem[0] , FPRecorder.handleEvent);
+						mutedItems.push({'eventType':elem[0] , 'item':item});
+						break;
+					}
+					
+				}
+				
+			}
+				
+				mutedItems.push({'eventType' : 'click' , 'item': item});
+				mutedItems.push({'eventType' : 'doubleClick' , 'item': item});
+				
+				//mutedItems.push({'eventType' : 'link' , 'item': item});
+				mutedItems.push({'eventType' : 'keyDown' , 'item': item});
+				break;
+			case 'click':
+				
+				mutedItems.push({'eventType' : 'click' , 'item': item});
+				break;
+			case 'doubleClick':
+				
+				mutedItems.push({'eventType' : 'doubleClick' , 'item': item});
+				break;
+			case 'keyDown':
+				mutedItems.push({'eventType' : 'keyDown' , 'item': item});
+				break;
+			/*case 'link':
+				mutedItems.push({'eventType' : 'link' , 'item': item});
+			*/
+			default:
+			{
+				trace(eventType);
+				
+				
+				targ.removeEventListener(eventType , FPRecorder.handleEvent);
+				mutedItems.push({'eventType' : eventType , 'item': item});
+				break;
+				
+			}
+				
+		}
+		
+	}
+	
+	public static function unmuteItem(item:* , eventType:String){
+		// if eventType is set to 'all' the item will be unmuted for all the possible event recordings
+		
+		var removedMutes:Array=new Array;
+		
+		//trace(mutedItems.length , "length muted items");
+		
+		switch(eventType){
+			
+			case 'all':
+				
+				
+				for(var i:Number=0;i<mutedItems.length;){
+					if(mutedItems[i].item==item){
+						removedMutes[mutedItems[i].eventType]=mutedItems[i].item;
+						
+		
+						mutedItems.splice(i , 1);
+					}
+					else
+						i++;
+			}
+			
+			default:
+				for(var i:Number=0;i<mutedItems.length;){
+					if(mutedItems[i].item==item&&mutedItems[i].eventType==eventType){
+						removedMutes[mutedItems[i].eventType]=mutedItems[i].item;
+						
+		
+						mutedItems.splice(i , 1);
+						
+						
+					}
+					else
+						i++;
+				}
+				
+				break;
+				
+				
+		}
+		
+		addListener(removedMutes);
+		
+	}
+	
+	private static function addListener(rm:Array){
+		
+		
+		
+		for(var eventType:* in rm){
+		
+			if(eventType!='click'||eventType!='dobleClick'||eventType!='keyDown'||eventType!='link')
+				FPLocator.lookupDisplayObject({'chain':rm[eventType]}).addEventListener(eventType , FPRecorder.handleEvent);
+				
+				
+		}
+			
+		
+	}
 
     public static function handleEvent(e:*):void{
 		
@@ -678,6 +805,15 @@ package org.flex_pilot {
 			// If we don't ignore 0 we get a translation error
 			// as it generates a non unicode character
 			
+			for each(var elem:* in mutedItems){
+			
+			
+			// (chain.indexOf(elem.item)==0  returns true if the item locator stored in 'elem.item' is parent of object described by locator 'chain'
+			if((chain.indexOf(elem.item)==0) && elem.eventType=='keyDown')
+				return;				//don;t record the keys since the item is muted against any keyDown events
+			
+		}
+			
 				if (e.charCode != 0) 
 					_this.keyDownString += String.fromCharCode(e.charCode);
 				
@@ -688,6 +824,17 @@ package org.flex_pilot {
           // If the last event was a keyDown, write out the string
           // that's been saved from the sequence of keyboard events
           if (_this.lastEventType == KeyboardEvent.KEY_DOWN) {
+			  
+			  for each(var elem:* in mutedItems){
+				  
+				  
+				  // (chain.indexOf(elem.item)==0  returns true if the item locator stored in 'elem.item' is parent of object described by locator 'chain'
+				  if((chain.indexOf(elem.item)==0) && elem.eventType=='keyDown')
+					  return;				//don;t record the keys since the item is muted against any keyDown events
+				  
+			  }
+			  
+			  
             var locate:* = targ;
             //If we have a prebuild last locator, use it
             //Since the current isn't actually the node we want
@@ -706,7 +853,7 @@ package org.flex_pilot {
           else
 			  if (_this.lastEventType == ListEvent.CHANGE) {
 			  
-			  //trace("this happens anyways");
+			  
 			  
             if (_this.recentTarget.change && _this.recentTarget is List) {
               return;
@@ -726,11 +873,33 @@ package org.flex_pilot {
               return;
             }
           }
+		  
+		  
           var t:String = e.type == MouseEvent.DOUBLE_CLICK ?
               'doubleClick' : 'click';
 			  if(!_this.noClickTime){
-          _this.generateAction(t, targ);
-          _this.resetRecentTarget('click', e);
+				  
+				  
+									//  Checking if any item has been muted against clicks or double clicks
+		
+				    
+				  
+				for each(var elem:* in mutedItems){
+				
+					
+					// (chain.indexOf(elem.item)==0  returns true if the item locator stored in 'elem.item' is parent of object described by locator 'chain'
+				if((chain.indexOf(elem.item)==0) && ((elem.eventType=='click'&&t=='click')||(elem.eventType=='doubleClick'&&t=='doubleClick')))
+				return;				//no further action if the item is enlisted to be muted against clicks or double-clicks
+				
+				}
+				_this.generateAction(t, targ);
+						_this.resetRecentTarget('click', e);
+						break;	
+					
+				
+				
+				
+			
 			  }
       }
 
