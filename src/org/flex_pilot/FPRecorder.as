@@ -19,6 +19,7 @@ package org.flex_pilot {
   import flash.display.DisplayObjectContainer;
   import flash.display.InteractiveObject;
   import flash.display.Stage;
+  import flash.events.Event;
   import flash.events.KeyboardEvent;
   import flash.events.MouseEvent;
   import flash.events.TextEvent;
@@ -101,7 +102,7 @@ package org.flex_pilot {
 	private static var sliderItems:Array=[];
 	
 	private static var mutedItems:Array=[];
-	
+	private static var mutedEvents:Array=[];
 	
 	
     private static var running:Boolean = false;
@@ -487,33 +488,16 @@ package org.flex_pilot {
 				
 			}
 				
-				mutedItems.push({'eventType' : 'click' , 'item': item});
-				mutedItems.push({'eventType' : 'doubleClick' , 'item': item});
+				mutedItems.push({'eventType' : 'click' , 'item': item , 'strict':strict});
+				mutedItems.push({'eventType' : 'doubleClick' , 'item': item , 'strict':strict});
 				
 				//mutedItems.push({'eventType' : 'link' , 'item': item});
-				mutedItems.push({'eventType' : 'keyDown' , 'item': item});
+				mutedItems.push({'eventType' : 'keyDown' , 'item': item, 'strict':strict});
 				break;
-			case 'click':
-				
-				mutedItems.push({'eventType' : 'click' , 'item': item});
-				break;
-			case 'doubleClick':
-				
-				mutedItems.push({'eventType' : 'doubleClick' , 'item': item});
-				break;
-			case 'keyDown':
-				mutedItems.push({'eventType' : 'keyDown' , 'item': item});
-				break;
-			/*case 'link':
-				mutedItems.push({'eventType' : 'link' , 'item': item});
-			*/
+			
 			default:
 			{
-				trace(eventType);
-				
-				
-				targ.removeEventListener(eventType , FPRecorder.handleEvent);
-				mutedItems.push({'eventType' : eventType , 'item': item});
+				mutedItems.push({'eventType' : eventType , 'item': item, 'strict':strict});
 				break;
 				
 			}
@@ -525,7 +509,6 @@ package org.flex_pilot {
 	public static function unmuteItem(item:* , eventType:String){
 		// if eventType is set to 'all' the item will be unmuted for all the possible event recordings
 		
-		var removedMutes:Array=new Array;
 		
 		//trace(mutedItems.length , "length muted items");
 		
@@ -536,7 +519,6 @@ package org.flex_pilot {
 				
 				for(var i:Number=0;i<mutedItems.length;){
 					if(mutedItems[i].item==item){
-						removedMutes[mutedItems[i].eventType]=mutedItems[i].item;
 						
 		
 						mutedItems.splice(i , 1);
@@ -548,7 +530,6 @@ package org.flex_pilot {
 			default:
 				for(var i:Number=0;i<mutedItems.length;){
 					if(mutedItems[i].item==item&&mutedItems[i].eventType==eventType){
-						removedMutes[mutedItems[i].eventType]=mutedItems[i].item;
 						
 		
 						mutedItems.splice(i , 1);
@@ -564,24 +545,35 @@ package org.flex_pilot {
 				
 		}
 		
-		addListener(removedMutes);
 		
 	}
 	
-	private static function addListener(rm:Array){
+	public static function muteEvent(event:* , eventType:String){
+		//if eventType set to 'all' then mute for all eventTypes for the event of type 'event'
+		
+		mutedEvents.push({'event':event , 'eventType':eventType});
 		
 		
 		
-		for(var eventType:* in rm){
-		
-			if(eventType!='click'||eventType!='dobleClick'||eventType!='keyDown'||eventType!='link')
-				FPLocator.lookupDisplayObject({'chain':rm[eventType]}).addEventListener(eventType , FPRecorder.handleEvent);
-				
-				
-		}
-			
 		
 	}
+	
+	public static function unmuteEvent(event:* , eventType:String){
+		
+		for(var i:Number=0;i<mutedEvents.length;){
+			if(mutedEvents[i].event == event &&(mutedEvents[i].eventType==eventType || mutedEvents[i].eventType=='all')){
+				
+				mutedEvents.splice(i , 1);
+				
+				
+			}
+			else
+				i++;
+		}
+		
+	}
+	
+	
 
     public static function handleEvent(e:*):void{
 		
@@ -592,6 +584,29 @@ package org.flex_pilot {
 	  var opts:Object;
 	  
 	  var condTest:Boolean=true;
+	  
+	  
+	  // checking if the event caught against the item has been requested to be muted
+	  for each(var elem:* in mutedItems){
+		  
+		  
+		  // (chain.indexOf(elem.item)==0  returns true if the item locator stored in 'elem.item' is parent of object described by locator 'chain'
+		  if(((chain.indexOf(elem.item)==0&&!elem.strict)||(chain==elem.item&&elem.strict))  && elem.eventType==e.type)
+			  return;				//don;t record the keys since the item is muted against events of type 'elem.eventType'
+		  
+	  }
+	  
+	  
+	  //checking if the event caught has been requested to be muted
+	  for each(var elem:* in mutedEvents){
+		  
+		  
+		  
+		  if( e is elem.event && (elem.eventType==e.type || e.type=='all'))
+			  return;
+		  
+	  }
+	  
 	  
 	  FP::complete  {
 	  
@@ -805,14 +820,7 @@ package org.flex_pilot {
 			// If we don't ignore 0 we get a translation error
 			// as it generates a non unicode character
 			
-			for each(var elem:* in mutedItems){
 			
-			
-			// (chain.indexOf(elem.item)==0  returns true if the item locator stored in 'elem.item' is parent of object described by locator 'chain'
-			if((chain.indexOf(elem.item)==0) && elem.eventType=='keyDown')
-				return;				//don;t record the keys since the item is muted against any keyDown events
-			
-		}
 			
 				if (e.charCode != 0) 
 					_this.keyDownString += String.fromCharCode(e.charCode);
@@ -825,14 +833,7 @@ package org.flex_pilot {
           // that's been saved from the sequence of keyboard events
           if (_this.lastEventType == KeyboardEvent.KEY_DOWN) {
 			  
-			  for each(var elem:* in mutedItems){
-				  
-				  
-				  // (chain.indexOf(elem.item)==0  returns true if the item locator stored in 'elem.item' is parent of object described by locator 'chain'
-				  if((chain.indexOf(elem.item)==0) && elem.eventType=='keyDown')
-					  return;				//don;t record the keys since the item is muted against any keyDown events
-				  
-			  }
+			 
 			  
 			  
             var locate:* = targ;
@@ -884,14 +885,7 @@ package org.flex_pilot {
 		
 				    
 				  
-				for each(var elem:* in mutedItems){
 				
-					
-					// (chain.indexOf(elem.item)==0  returns true if the item locator stored in 'elem.item' is parent of object described by locator 'chain'
-				if((chain.indexOf(elem.item)==0) && ((elem.eventType=='click'&&t=='click')||(elem.eventType=='doubleClick'&&t=='doubleClick')))
-				return;				//no further action if the item is enlisted to be muted against clicks or double-clicks
-				
-				}
 				_this.generateAction(t, targ);
 						_this.resetRecentTarget('click', e);
 						break;	
