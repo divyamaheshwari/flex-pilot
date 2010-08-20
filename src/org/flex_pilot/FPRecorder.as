@@ -506,18 +506,20 @@ package org.flex_pilot {
 		
 	}
 	
-	public static function unmuteItem(item:* , eventType:String){
+	public static function unmuteItem(item:* , eventType:String):void{
 		// if eventType is set to 'all' the item will be unmuted for all the possible event recordings
 		
 		
 		//trace(mutedItems.length , "length muted items");
+		
+		var i:Number;
 		
 		switch(eventType){
 			
 			case 'all':
 				
 				
-				for(var i:Number=0;i<mutedItems.length;){
+				for(i=0;i<mutedItems.length;){
 					if(mutedItems[i].item==item){
 						
 		
@@ -528,7 +530,7 @@ package org.flex_pilot {
 			}
 			
 			default:
-				for(var i:Number=0;i<mutedItems.length;){
+				for(i=0;i<mutedItems.length;){
 					if(mutedItems[i].item==item&&mutedItems[i].eventType==eventType){
 						
 		
@@ -548,7 +550,7 @@ package org.flex_pilot {
 		
 	}
 	
-	public static function muteEvent(event:* , eventType:String){
+	public static function muteEvent(event:* , eventType:String):void{
 		//if eventType set to 'all' then mute for all eventTypes for the event of type 'event'
 		
 		mutedEvents.push({'event':event , 'eventType':eventType});
@@ -558,7 +560,7 @@ package org.flex_pilot {
 		
 	}
 	
-	public static function unmuteEvent(event:* , eventType:String){
+	public static function unmuteEvent(event:* , eventType:String):void{
 		
 		for(var i:Number=0;i<mutedEvents.length;){
 			if(mutedEvents[i].event == event &&(mutedEvents[i].eventType==eventType || mutedEvents[i].eventType=='all')){
@@ -585,9 +587,10 @@ package org.flex_pilot {
 	  
 	  var condTest:Boolean=true;
 	  
+	  var elem:*;
 	  
 	  // checking if the event caught against the item has been requested to be muted
-	  for each(var elem:* in mutedItems){
+	  for each(elem in mutedItems){
 		  
 		  
 		  // (chain.indexOf(elem.item)==0  returns true if the item locator stored in 'elem.item' is parent of object described by locator 'chain'
@@ -598,7 +601,7 @@ package org.flex_pilot {
 	  
 	  
 	  //checking if the event caught has been requested to be muted
-	  for each(var elem:* in mutedEvents){
+	  for each(elem in mutedEvents){
 		  
 		  
 		  

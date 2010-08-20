@@ -16,11 +16,12 @@ Copyright 2009, Matthew Eernisse (mde@fleegix.org) and Slide, Inc.
 */
 
 package org.flex_pilot {
-  import org.flex_pilot.FlexPilot;
-  import org.flex_pilot.FPLogger;
   import flash.display.DisplayObject;
   import flash.display.DisplayObjectContainer;
   import flash.utils.*;
+  
+  import org.flex_pilot.FPLogger;
+  import org.flex_pilot.FlexPilot;
 
   public class FPLocator {
     // Stupid AS3 doesn't iterate over Object keys
@@ -79,7 +80,7 @@ package org.flex_pilot {
         return res;
     }
 
-    public static function lookupDisplayObjectForContext(
+    /*public static function lookupDisplayObjectForContext(
         params:Object, obj:*):DisplayObject {
 
       var locators:Array = [];
@@ -144,8 +145,115 @@ package org.flex_pilot {
       }
       throw new Error("The chain '" + str +"' was not found.")
       return null;
-    }
+    }*/
 
+	public static function lookupDisplayObjectForContext(
+		params:Object, obj:*):DisplayObject {
+		
+		var locators:Array = [];
+		var queue:Array = [];
+		
+		var ind:Number=-1;
+		var lpos:Number=-1;
+		var counter:Number=-1;
+		
+		
+		
+		var checkFPLocatorChain:Function = function (
+			item:*, pos:int):DisplayObject {
+			var map:Object = FPLocator.locatorMapObj;
+			var loc:Object = locators[pos];
+			// If nothing specific exists for that attr, use the basic one
+			var finder:Function = map[loc.attr] || FPLocator.findBySimpleAttr;
+			var next:int = pos + 1;
+			
+			
+			
+			
+
+			var regx:RegExp=new RegExp('\\*\\[(\\d+)\\]');
+			
+			if(regx.test(loc.val)){
+				
+				
+				var str:String=loc.val.replace(new RegExp('\\[(\\d+)\\]',"g"), "");
+				
+				if(lpos!=pos){
+				counter=0;
+				lpos=pos;
+				ind=regx.exec(loc.val)[1];
+				
+				}
+				
+				
+				if(!!finder(item, loc.attr, loc.val) && counter!=ind){
+						counter++;
+						return null;
+					}
+				
+			}
+				
+			// if the value tries via index of the wild card result
+			
+			
+			
+			if (!!finder(item, loc.attr, loc.val)) {
+				
+				
+				
+				// Move to the next locator in the chain
+				// If it's the end of the chain, we have a winner
+				if (next == locators.length) {
+					return item;
+				}
+				// Otherwise recursively check the next link in
+				// the locator chain
+				var count:int = 0;
+				if (item is DisplayObjectContainer) {
+					count = item.numChildren;
+				}
+				if (count > 0) {
+					var index:int = 0;
+					while (index < count) {
+						var kid:DisplayObject = item.getChildAt(index);
+						var res:DisplayObject = checkFPLocatorChain(kid, next);
+						if (res) {
+							return res;
+						}
+						index++;
+					}
+				}
+			}
+			return null;
+		};
+		
+		var str:String = normalizeFPLocator(params);
+		locators = parseFPLocatorChainExpresson(str);
+		
+		queue.push(obj);
+		while (queue.length) {
+			// Otherwise grab the next item in the queue
+			var item:* = queue.shift();
+			// Append any kids to the end of the queue
+			if (item is DisplayObjectContainer) {
+				var count:int = item.numChildren;
+				var index:int = 0;
+				while (index < count) {
+					var kid:DisplayObject = item.getChildAt(index);
+					queue.push(kid);
+					index++;
+				}
+			}
+			var res:DisplayObject = checkFPLocatorChain(item, 0);
+			// If this is a full match, we're done
+			if (res) {
+				return res;
+			}
+		}
+		throw new Error("The chain '" + str +"' was not found.")
+		return null;
+	}
+	
     private static function parseFPLocatorChainExpresson(
         exprStr:String):Array {
       var locators:Array = [];
@@ -186,14 +294,23 @@ package org.flex_pilot {
     // Default locator for all basic key/val attr matches
     private static function findBySimpleAttr(
         obj:*, attr:String, val:*):Boolean {
+		
+		
       //if we receive a simple attr with an asterix
       //we create a regex allowing for wildcard strings
       if (val.indexOf("*") != -1) {
+		  
+		  //removing the index number before proceeding
+		  val=val.replace(new RegExp('\\[\\d+\\]',"g"), "");
+		  
         if (attr in obj) {
           //repalce wildcards with any character match
+			
           var valRegExp:String = val.replace(new RegExp("\\*", "g"), "(.*)");
           //force a beginning and end
           valRegExp = "^"+valRegExp +"$";
+		  
+		  
           var wildcard:RegExp = new RegExp(valRegExp);
           var result:Object = wildcard.exec(obj[attr]);
           return !!(result != null);
