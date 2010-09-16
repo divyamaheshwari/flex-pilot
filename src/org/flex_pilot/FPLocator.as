@@ -16,12 +16,12 @@ Copyright 2009, Matthew Eernisse (mde@fleegix.org) and Slide, Inc.
 */
 
 package org.flex_pilot {
+  import org.flex_pilot.FlexPilot;
+  import org.flex_pilot.FPLogger;
   import flash.display.DisplayObject;
   import flash.display.DisplayObjectContainer;
+  import mx.core.IRawChildrenContainer;
   import flash.utils.*;
-  
-  import org.flex_pilot.FPLogger;
-  import org.flex_pilot.FlexPilot;
 
   public class FPLocator {
     // Stupid AS3 doesn't iterate over Object keys
@@ -29,12 +29,13 @@ package org.flex_pilot {
     // null for the finder func means use the default
     // of findBySimpleAttr
     private static var locatorMap:Array = [
-      ['name', null],
+      ['automationName', null],
       ['id', null],
+      ['name', null],
       ['link', FPLocator.findLink],
       ['label', null],
       ['htmlText', FPLocator.findHTML],
-      ['automationName', null]
+      ['child', null]
     ];
     private static var locatorMapObj:Object = {};
     private static var locatorMapCreated:Boolean = false;
@@ -48,7 +49,8 @@ package org.flex_pilot {
       'id',
       'name',
       'label',
-      'htmlText'
+      'htmlText',
+      'child'
     ];
 
     public static function init():void {
@@ -80,7 +82,7 @@ package org.flex_pilot {
         return res;
     }
 
-    /*public static function lookupDisplayObjectForContext(
+    public static function lookupDisplayObjectForContext(
         params:Object, obj:*):DisplayObject {
 
       var locators:Array = [];
@@ -103,12 +105,23 @@ package org.flex_pilot {
           // the locator chain
           var count:int = 0;
           if (item is DisplayObjectContainer) {
-            count = item.numChildren;
+            if (item is IRawChildrenContainer) {
+              count = item.rawChildren.numChildren;
+            }
+            else {
+              count = item.numChildren;
+            }
           }
           if (count > 0) {
             var index:int = 0;
             while (index < count) {
-              var kid:DisplayObject = item.getChildAt(index);
+              var kid:DisplayObject;
+              if (item is IRawChildrenContainer) {
+                kid = item.rawChildren.getChildAt(index);
+              }
+              else {
+                kid = item.getChildAt(index);
+              }
               var res:DisplayObject = checkFPLocatorChain(kid, next);
               if (res) {
                 return res;
@@ -122,17 +135,28 @@ package org.flex_pilot {
 
       var str:String = normalizeFPLocator(params);
       locators = parseFPLocatorChainExpresson(str);
-
       queue.push(obj);
       while (queue.length) {
         // Otherwise grab the next item in the queue
         var item:* = queue.shift();
         // Append any kids to the end of the queue
         if (item is DisplayObjectContainer) {
-          var count:int = item.numChildren;
+          var count:int = 0;
+          if (item is IRawChildrenContainer) {
+            count = item.rawChildren.numChildren;
+          }
+          else {
+            count = item.numChildren;
+          }
           var index:int = 0;
           while (index < count) {
-            var kid:DisplayObject = item.getChildAt(index);
+            var kid:DisplayObject
+            if (item is IRawChildrenContainer) {
+              kid = item.rawChildren.getChildAt(index);
+            }
+            else {
+              kid = item.getChildAt(index);
+            }
             queue.push(kid);
             index++;
           }
@@ -143,117 +167,9 @@ package org.flex_pilot {
           return res;
         }
       }
-      throw new Error("The chain '" + str +"' was not found.")
       return null;
-    }*/
+    }
 
-	public static function lookupDisplayObjectForContext(
-		params:Object, obj:*):DisplayObject {
-		
-		var locators:Array = [];
-		var queue:Array = [];
-		
-		var ind:Number=-1;
-		var lpos:Number=-1;
-		var counter:Number=-1;
-		
-		
-		
-		var checkFPLocatorChain:Function = function (
-			item:*, pos:int):DisplayObject {
-			var map:Object = FPLocator.locatorMapObj;
-			var loc:Object = locators[pos];
-			// If nothing specific exists for that attr, use the basic one
-			var finder:Function = map[loc.attr] || FPLocator.findBySimpleAttr;
-			var next:int = pos + 1;
-			
-			
-			
-			
-
-			var regx:RegExp=new RegExp('\\*\\[(\\d+)\\]');
-			
-			if(regx.test(loc.val)){
-				
-				
-				var str:String=loc.val.replace(new RegExp('\\[(\\d+)\\]',"g"), "");
-				
-				if(lpos!=pos){
-				counter=0;
-				lpos=pos;
-				ind=regx.exec(loc.val)[1];
-				
-				}
-				
-				
-				if(!!finder(item, loc.attr, loc.val) && counter!=ind){
-						counter++;
-						return null;
-					}
-				
-			}
-				
-			// if the value tries via index of the wild card result
-			
-			
-			
-			if (!!finder(item, loc.attr, loc.val)) {
-				
-				
-				
-				// Move to the next locator in the chain
-				// If it's the end of the chain, we have a winner
-				if (next == locators.length) {
-					return item;
-				}
-				// Otherwise recursively check the next link in
-				// the locator chain
-				var count:int = 0;
-				if (item is DisplayObjectContainer) {
-					count = item.numChildren;
-				}
-				if (count > 0) {
-					var index:int = 0;
-					while (index < count) {
-						var kid:DisplayObject = item.getChildAt(index);
-						var res:DisplayObject = checkFPLocatorChain(kid, next);
-						if (res) {
-							return res;
-						}
-						index++;
-					}
-				}
-			}
-			return null;
-		};
-		
-		var str:String = normalizeFPLocator(params);
-		locators = parseFPLocatorChainExpresson(str);
-		
-		queue.push(obj);
-		while (queue.length) {
-			// Otherwise grab the next item in the queue
-			var item:* = queue.shift();
-			// Append any kids to the end of the queue
-			if (item is DisplayObjectContainer) {
-				var count:int = item.numChildren;
-				var index:int = 0;
-				while (index < count) {
-					var kid:DisplayObject = item.getChildAt(index);
-					queue.push(kid);
-					index++;
-				}
-			}
-			var res:DisplayObject = checkFPLocatorChain(item, 0);
-			// If this is a full match, we're done
-			if (res) {
-				return res;
-			}
-		}
-		throw new Error("The chain '" + str +"' was not found.")
-		return null;
-	}
-	
     private static function parseFPLocatorChainExpresson(
         exprStr:String):Array {
       var locators:Array = [];
@@ -294,23 +210,43 @@ package org.flex_pilot {
     // Default locator for all basic key/val attr matches
     private static function findBySimpleAttr(
         obj:*, attr:String, val:*):Boolean {
-		
-		
+      //check to see if a childIndex is specified
+      var childIndexReg:RegExp = new RegExp("\\[.*\\]", "g");
+      var childIndex:String = childIndexReg.exec(val);
+      //do we have an child index constraint
+      if (childIndex != null) {
+        //remove it so it doesn't mess up further matching
+        val = val.replace(childIndexReg, "");
+        childIndex = childIndex.replace("[","");
+        childIndex = childIndex.replace("]","");
+        var childIndexInt:int = Number(childIndex);
+        //If this node matches the provided child index
+        var par:* = obj.parent;
+        if (par is DisplayObjectContainer) {
+          var realObjIndex:int;
+          if (par is IRawChildrenContainer) {
+            realObjIndex = par.rawChildren.getChildIndex(obj);
+          }
+          else {
+            realObjIndex = par.getChildIndex(obj);
+          }
+          //if we were given a childIndex, make sure this passes that req
+          if (childIndexInt != realObjIndex) {
+            return false;
+          }
+          else if (val == ""){
+            return true;
+          }
+        }
+      }
       //if we receive a simple attr with an asterix
       //we create a regex allowing for wildcard strings
       if (val.indexOf("*") != -1) {
-		  
-		  //removing the index number before proceeding
-		  val=val.replace(new RegExp('\\[\\d+\\]',"g"), "");
-		  
         if (attr in obj) {
-          //repalce wildcards with any character match
-			
+          //replace wildcards with any character match
           var valRegExp:String = val.replace(new RegExp("\\*", "g"), "(.*)");
           //force a beginning and end
           valRegExp = "^"+valRegExp +"$";
-		  
-		  
           var wildcard:RegExp = new RegExp(valRegExp);
           var result:Object = wildcard.exec(obj[attr]);
           return !!(result != null);
@@ -390,12 +326,24 @@ package org.flex_pilot {
           var par:* = item.parent;
           var count:int = 0;
           if (par is DisplayObjectContainer) {
-            count = par.numChildren;
+            if (par is IRawChildrenContainer) {
+              count = par.rawChildren.numChildren;
+            }
+            else {
+              count = par.numChildren;
+            }
           }
           if (count > 0) {
             var index:int = 0;
             while (index < count) {
-              var kid:DisplayObject = par.getChildAt(index);
+              var kid:DisplayObject;
+              if (par is IRawChildrenContainer) {
+                kid = par.rawChildren.getChildAt(index);
+              }
+              else {
+                kid = par.getChildAt(index);
+              }
+              
               if (kid == item) {
                 winner = true;
                 break;
@@ -439,7 +387,7 @@ package org.flex_pilot {
         // Try looking up a value for each attribute in order
         // of preference
         for each (attr in locatorPriority) {
-          // If we find one of the lookuup keys, we may have a winner
+          // If we find one of the lookup keys, we may have a winner
           if (weHaveAWinner(item, attr)) {
             // Prepend onto the locator expression, then check to
             // see if the chain still results in a valid lookup

@@ -19,27 +19,21 @@ package org.flex_pilot {
   import flash.display.DisplayObjectContainer;
   import flash.display.InteractiveObject;
   import flash.display.Stage;
-  import flash.events.Event;
   import flash.events.KeyboardEvent;
   import flash.events.MouseEvent;
   import flash.events.TextEvent;
   import flash.external.ExternalInterface;
   import flash.text.StaticText;
-  import flash.text.TextField;
   import flash.utils.*;
   
-  import mx.controls.Button;
-  import mx.controls.ComboBase;
   import mx.controls.ComboBox;
   import mx.controls.DataGrid;
   import mx.controls.DateChooser;
   import mx.controls.DateField;
   import mx.controls.List;
-  import mx.controls.VSlider;
   import mx.controls.dataGridClasses.DataGridBase;
   import mx.controls.listClasses.ListBase;
   import mx.controls.sliderClasses.Slider;
-  import mx.core.EventPriority;
   import mx.core.UIComponent;
   import mx.events.CalendarLayoutChangeEvent;
   import mx.events.DataGridEvent;
@@ -53,28 +47,28 @@ package org.flex_pilot {
   import org.flex_pilot.FPLogger;
   import org.flex_pilot.FlexPilot;
   
-  FP::complete
-  {
-  import mx.events.AdvancedDataGridEvent;
-  import mx.controls.listClasses.AdvancedListBase;
-  import mx.controls.advancedDataGridClasses.AdvancedDataGridBase;
-  import mx.controls.AdvancedDataGrid;
-  import mx.controls.AdvancedDataGridBaseEx;
+  
+  
+  FP::complete {
+    import mx.events.AdvancedDataGridEvent;
+    import mx.controls.listClasses.AdvancedListBase;
+    import mx.controls.advancedDataGridClasses.AdvancedDataGridBase;
+    import mx.controls.AdvancedDataGrid;
+    import mx.controls.AdvancedDataGridBaseEx;
   }
 
   public class FPRecorder {
+	  
+	  
     // Remember the last event type so we know when to
     // output the stored string from a sequence of keyDown events
     private static var lastEventType:String;
     private static var lastEventLocator:String;
-	
-	
-	
-	//just to hide the mouse clicks occured while the user is changing the date or value of slider .
-	private static var noClickTime:Boolean=false;
-	private static var noClick:*;
-	
-	
+
+    //just to hide the mouse clicks occured while the user is changing the date or value of slider .
+    private static var noClickTime:Boolean=false;
+    private static var noClick:*;
+    
     // Remember recent target -- used to detect double-click
     // and to throw away click events on text items that have
     // already spawned a 'link' TextEvent.
@@ -82,290 +76,107 @@ package org.flex_pilot {
     private static var recentTarget:Object = {
       click: null,
       change: null,
-	  sliderChange: null
+      sliderChange: null
     };
+    
     // Timeout id for removing the recentTarget
     private static var recentTargetTimeout:Object = {
       click: null,
       change: null,
-	  sliderChange: null,
-	  dateChange: null
+      sliderChange: null,
+      dateChange: null
     };
+    
     // String built from a sequenece of keyDown events
     private static var keyDownString:String = '';
-    private static var listItems:Array = [];
-	private static var dateItems:Array=[];
-	private static var dgItems:Array=[];
-	private static var adgItems:Array=[];
-	private static var adgBaseExItems:Array=[];
-	private static var uicItems:Array=[];
-	private static var sliderItems:Array=[];
-	
-	private static var mutedItems:Array=[];
-	private static var mutedEvents:Array=[];
-	
+   /* private static var listItems:Array = [];
+    private static var dateItems:Array=[];
+    private static var dgItems:Array=[];
+    private static var adgItems:Array=[];
+    private static var adgBaseExItems:Array=[];
+    private static var uicItems:Array=[];
+    private static var sliderItems:Array=[];*/
 	
     private static var running:Boolean = false;
+    
+    // just in case u want to record for clicks placed while you are 
+    //performing other user actities  Ex. recording of clicks while selecting an item from a list
+    public static var recordExtraClicks:Boolean=false;
+    private static var draggerParams:Object;
+    public static var test:Object;
+    public static var typesAllowed:Array;
+    private static var runBefore:Boolean=false;
 	
 	
-	// just in case u want to record for clicks placed while you are performing other user actities  Ex. recording of clicks while selecting an item from a list
-	public static var recordExtraClicks:Boolean=false;
+	// maps some of the flex4 components to the existing flex3 component
+	private static var componentMap:Array=[];
+	private static var eventMap:Array=[];
 	
 	
-	private static var draggerParams:Object;
 	
-	public static var test:Object;
-	
-	private static var defTypesAllowed:Array;
-	
-	private static var typesAllowed:Array;
-	
-	
-	defTypesAllowed=[['change' , [Slider,ListBase , ComboBox ,DateChooser , DateField]] ,
-		['columnStretch' , [DataGrid]] ,
-		['headerRelease', [DataGrid]] ,
-		['itemEditEnd' , [DataGrid]] ,
-		['dragDrop' , [ListBase]] ,
-		['dragStart' , [ListBase]]
-		
+	typesAllowed=[
+		{'item':Slider , 'itemList':[] , 'eventType':['change']} , 
+		{'item':ListBase , 'itemList':[] , 'eventType':['change']} ,
+		{'item':ComboBox , 'itemList':[] , 'eventType':['change']} ,
+		{'item':DateChooser , 'itemList':[] , 'eventType':['change']} ,
+		{'item':DateField , 'itemList':[] , 'eventType':['change']} ,
+		{'item':DataGrid , 'itemList':[] , 'eventType':['columnStretch' , 'headerRelease' , 'itemEditEnd']} ,
+		{'item':UIComponent , 'itemList':[] , 'eventType':['dragStart' , 'dragDrop']} ,
 	];
-	
-	
-	FP::complete  {
-	defTypesAllowed=[['change' , [Slider,ListBase , ComboBox , AdvancedListBase,DateChooser , DateField]] ,
-		['columnStretch' , [DataGrid , AdvancedDataGridBaseEx]] ,
-		['headerRelease', [DataGrid , AdvancedDataGridBaseEx]] ,
-		['itemEditEnd' , [DataGrid , AdvancedDataGridBaseEx]] ,
-		['itemOpen' , [AdvancedDataGrid]] ,
-		['itemClose' , [AdvancedDataGrid]] ,
-		['headerShift' , [AdvancedDataGridBaseEx]] ,
-		['dragDrop' , [ListBase , AdvancedListBase]] ,
-		['dragStart' , [ListBase ,  AdvancedListBase]]
-		
-	];
-	}
-	
-	typesAllowed=defTypesAllowed;
-		
-	
-	
-	
-	private static var typesAllowedObj:Object={};
-	
-	
-	
-	
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    FP::complete  {
+    
+		typesAllowed=[
+			{'item':Slider , 'itemList':[] , 'eventType':['change']} , 
+			{'item':ListBase , 'itemList':[] , 'eventType':['change']} ,
+			{'item':ComboBox , 'itemList':[] , 'eventType':['change']} ,
+			{'item':DateChooser , 'itemList':[] , 'eventType':['change']} ,
+			{'item':DateField , 'itemList':[] , 'eventType':['change']} ,
+			{'item':DataGrid , 'itemList':[] , 'eventType':['columnStretch' , 'headerRelease' , 'itemEditEnd']} ,
+			{'item':UIComponent , 'itemList':[] , 'eventType':['dragStart' , 'dragDrop']} ,
+			{'item':AdvancedListBase , 'itemList':[] , 'eventType':['change' , 'dragStart' , 'dragDrop']} ,
+			{'item':AdvancedDataGridBaseEx , 'itemList':[] , 'eventType':['columnStretch' , 'headerRelease' , 'itemEditEnd']} ,
+			{'item':AdvancedDataGrid , 'itemList':[] , 'eventType':['itemOpen' , 'itemClose']} 
+		];
+    }
 
+    private static var typesAllowedObj:Object={};
     public function FPRecorder():void {}
-
     public static function start():void {
       // Stop the explorer if it's going
       FPExplorer.stop();
 	  
-	  for each(var elem:* in typesAllowed){
-		  
-		  typesAllowedObj[elem[0]]=elem[1];
-	  }
-
+	  
+	  
+	  if(!runBefore)
+	  makeFlex4Compatible();
+	  
+	  
+      
       var recurseAttach:Function = function (item:*):void {
         // Otherwise recursively check the next link in
         // the locator chain
         var count:int = 0;
+        var i:Number=0;
+        var arr:Array;
 		
-		var i:Number=0;
-		
-		var arr:Array;
-		
-		// With ListBase select event on various other component like DataGrid is also handled . . . . :)
-        if (item is ComboBox || item is ListBase ) {
-          FPRecorder.listItems.push(item);
-          
-		  if(FPRecorder.typesAllowedObj[ListEvent.CHANGE]){
-			  arr = FPRecorder.typesAllowedObj[ListEvent.CHANGE] as Array;
-			  for(i=0 ; i<arr.length ; i++)
-				  if(item is arr[i]){
-					  item.addEventListener(ListEvent.CHANGE, FPRecorder.handleEvent);
-				  }
-		  }
-		  
-        }
-		
-		FP::complete  {
-		if (item is AdvancedListBase) {
-			FPRecorder.listItems.push(item);
+		for each(var elem:* in typesAllowed){
 			
-			if(FPRecorder.typesAllowedObj[ListEvent.CHANGE]){
-				arr = FPRecorder.typesAllowedObj[ListEvent.CHANGE] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						item.addEventListener(ListEvent.CHANGE, FPRecorder.handleEvent);
-					}
-			}
 			
-		}
-		}
-		
-		
-		if(item is Slider){
-			FPRecorder.sliderItems.push(item);
-			if(FPRecorder.typesAllowedObj[SliderEvent.CHANGE]){
-				arr = FPRecorder.typesAllowedObj[SliderEvent.CHANGE] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						item.addEventListener(SliderEvent.CHANGE , FPRecorder.handleEvent);
-					}
+			
+			
+			if(item is elem.item){
+				elem.itemList.push(item);
+				for each(var eventType:* in elem.eventType){
+					
+					item.addEventListener(eventType , FPRecorder.handleEvent);
+				}
+				
 			}
 		}
-		
-		
-		
-		if(item is DateChooser||item is DateField){
-			FPRecorder.dateItems.push(item);
-			
-			if(FPRecorder.typesAllowedObj[CalendarLayoutChangeEvent.CHANGE]){
-				arr = FPRecorder.typesAllowedObj[CalendarLayoutChangeEvent.CHANGE] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						item.addEventListener(CalendarLayoutChangeEvent.CHANGE, FPRecorder.handleEvent);
-					}
-			}
-			
-			
-		}
-		
-		if(item is DataGrid){
-			FPRecorder.dgItems.push(item);
-			
-			if(FPRecorder.typesAllowedObj[DataGridEvent.COLUMN_STRETCH]){
-				arr = FPRecorder.typesAllowedObj[DataGridEvent.COLUMN_STRETCH] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						item.addEventListener(DataGridEvent.COLUMN_STRETCH , FPRecorder.handleEvent);
-					}
-			}
-			
-			if(FPRecorder.typesAllowedObj[DataGridEvent.HEADER_RELEASE]){
-				arr = FPRecorder.typesAllowedObj[DataGridEvent.HEADER_RELEASE] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						item.addEventListener(DataGridEvent.HEADER_RELEASE , FPRecorder.handleEvent );
-					}
-			}
-			
-			if(FPRecorder.typesAllowedObj[DataGridEvent.ITEM_EDIT_END]){
-				arr = FPRecorder.typesAllowedObj[DataGridEvent.ITEM_EDIT_END] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						item.addEventListener(DataGridEvent.ITEM_EDIT_END , FPRecorder.handleEvent);
-					}
-			}
-			
-			
-			
-		}
-		
-		
-		FP::complete  {
-		if(item is AdvancedDataGrid){
-			FPRecorder.adgItems.push(item);
-			
-			if(FPRecorder.typesAllowedObj[AdvancedDataGridEvent.ITEM_OPEN]){
-				arr = FPRecorder.typesAllowedObj[AdvancedDataGridEvent.ITEM_OPEN] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						item.addEventListener(AdvancedDataGridEvent.ITEM_OPEN, FPRecorder.handleEvent);
-					}
-			}
-			
-			if(FPRecorder.typesAllowedObj[AdvancedDataGridEvent.ITEM_CLOSE]){
-				arr = FPRecorder.typesAllowedObj[AdvancedDataGridEvent.ITEM_CLOSE] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						item.addEventListener(AdvancedDataGridEvent.ITEM_CLOSE, FPRecorder.handleEvent);
-					}
-			}
-			
-		}
-		}
-		
-		
-		FP::complete  {
-		if(item is AdvancedDataGridBaseEx){
-			
-			FPRecorder.adgBaseExItems.push(item);
-			
-			
-			if(FPRecorder.typesAllowedObj[AdvancedDataGridEvent.COLUMN_STRETCH]){
-				arr = FPRecorder.typesAllowedObj[AdvancedDataGridEvent.COLUMN_STRETCH] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						item.addEventListener(AdvancedDataGridEvent.COLUMN_STRETCH, FPRecorder.handleEvent);
-					}
-			}
-			
-			
-			if(FPRecorder.typesAllowedObj[IndexChangedEvent.HEADER_SHIFT]){
-				arr = FPRecorder.typesAllowedObj[IndexChangedEvent.HEADER_SHIFT] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						item.addEventListener(IndexChangedEvent.HEADER_SHIFT, FPRecorder.handleEvent);
-					}
-			}
-			
-			if(FPRecorder.typesAllowedObj[AdvancedDataGridEvent.HEADER_RELEASE]){
-				arr = FPRecorder.typesAllowedObj[AdvancedDataGridEvent.HEADER_RELEASE] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						
-						item.addEventListener(AdvancedDataGridEvent.HEADER_RELEASE, FPRecorder.handleEvent);
-					}
-			}
-			
-			if(FPRecorder.typesAllowedObj[AdvancedDataGridEvent.ITEM_EDIT_END]){
-				arr = FPRecorder.typesAllowedObj[AdvancedDataGridEvent.ITEM_EDIT_END] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						item.addEventListener(AdvancedDataGridEvent.ITEM_EDIT_END, FPRecorder.handleEvent);
-					}
-			}
-			
-			
-			
-		}
-		}
-		
-		
-		if(item is UIComponent){
-			
-			FPRecorder.uicItems.push(item);
-			
-			
-			
-			if(FPRecorder.typesAllowedObj[DragEvent.DRAG_START]){
-				arr = FPRecorder.typesAllowedObj[DragEvent.DRAG_START] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						item.addEventListener(DragEvent.DRAG_START, FPRecorder.handleEvent);
-					}
-			}
-			
-			if(FPRecorder.typesAllowedObj[DragEvent.DRAG_DROP]){
-				arr = FPRecorder.typesAllowedObj[DragEvent.DRAG_DROP] as Array;
-				for(i=0 ; i<arr.length ; i++)
-					if(item is arr[i]){
-						item.addEventListener(DragEvent.DRAG_DROP, FPRecorder.handleEvent);
-					}
-			}
-			
-			
-		
-			
-		}
-		
-		
-		
-		
+        
+        
+
         if (item is DisplayObjectContainer) {
           count = item.numChildren;
         }
@@ -378,6 +189,8 @@ package org.flex_pilot {
           }
         }
       }
+		
+		
       recurseAttach(FlexPilot.getContext());
       var stage:Stage = FlexPilot.getStage();
       stage.addEventListener(MouseEvent.CLICK, FPRecorder.handleEvent);
@@ -385,7 +198,7 @@ package org.flex_pilot {
       stage.addEventListener(TextEvent.LINK, FPRecorder.handleEvent);
       stage.addEventListener(KeyboardEvent.KEY_DOWN, FPRecorder.handleEvent);
 	  
-
+      
       FPRecorder.running = true;
     }
 
@@ -397,673 +210,469 @@ package org.flex_pilot {
       stage.removeEventListener(TextEvent.LINK, FPRecorder.handleEvent);
       stage.removeEventListener(KeyboardEvent.KEY_DOWN, FPRecorder.handleEvent);
 	  
-	  
-      var list:Array = FPRecorder.sliderItems;
-	  var item:*;
-	  
-	  var i:Number;
-	  for each(item in list){
-		  item.removeEventListener(SliderEvent.CHANGE , FPRecorder.handleEvent);
-	  }
-	  
-	  list = FPRecorder.dateItems;
-	  for each (item in list) {
-		  
-		  item.removeEventListener(CalendarLayoutChangeEvent.CHANGE, FPRecorder.handleEvent);
-	  }
-	  
-	  list = FPRecorder.listItems;
-	  for each (item in list) {
-		  item.removeEventListener(ListEvent.CHANGE, FPRecorder.handleEvent);
-	  }
-	  
-	  list=FPRecorder.dgItems;
-	  
-	  for(i = 0 ; i<list.length;i++){
-		  item=list[i];
-		  item.removeEventListener(DataGridEvent.COLUMN_STRETCH , FPRecorder.handleEvent);
-		  item.removeEventListener(DataGridEvent.ITEM_EDIT_END , FPRecorder.handleEvent);
-		  item.removeEventListener(DataGridEvent.HEADER_RELEASE , FPRecorder.handleEvent);
-		  
-	  }
-	  
-	  list=FPRecorder.adgItems;
-	  
-	  FP::complete  {
-	  for(i= 0 ; i<list.length;i++){
-		  item=list[i];
-		  item.removeEventListener(AdvancedDataGridEvent.ITEM_CLOSE , FPRecorder.handleEvent);
-		  item.removeEventListener(AdvancedDataGridEvent.ITEM_OPEN , FPRecorder.handleEvent);
-		  
-		  
-	  }
-	  }
-	  
-	  list=FPRecorder.adgBaseExItems;
-	  
-	  FP::complete  {
-	  for(i = 0 ; i<list.length;i++){
-		  item=list[i];
-		  item.removeEventListener(AdvancedDataGridEvent.COLUMN_STRETCH , FPRecorder.handleEvent);
-		  item.removeEventListener(IndexChangedEvent.HEADER_SHIFT , FPRecorder.handleEvent);
-		  item.removeEventListener(AdvancedDataGridEvent.HEADER_RELEASE , FPRecorder.handleEvent);
-		  item.removeEventListener(AdvancedDataGridEvent.ITEM_EDIT_END , FPRecorder.handleEvent);
-	  }
-	  }
-	  
-	  list=FPRecorder.uicItems;
-	  for(i = 0 ; i<list.length;i++){
-		  item=list[i];
-		  item.removeEventListener(DragEvent.DRAG_START , FPRecorder.handleEvent);
-		  item.removeEventListener(DragEvent.DRAG_DROP , FPRecorder.handleEvent);
-		  
+	  for each( var elem:* in typesAllowed){
+		  while(elem.itemList.length){
+			  var item:*=elem.itemList.pop();
+			  for each(var eventType:* in elem.eventType)
+			  {
+				  item.removeEventListener(eventType , FPRecorder.handleEvent);
+			  }
+		  }
 	  }
       
-	  
+    
     }
 	
-	
-	
-	public static function muteItem(item:* , eventType:String , strict:Boolean=false):void{
-		// if eventType is set to 'all' then the item itself as a whole will be muted during the recording
+	private static function makeFlex4Compatible():void{
+		
+		runBefore=true;
+		
+		//var regx:RegExp=new RegExp('\\[class (.*)\\]');  [only few of the components have been put into spark.components and so will load them directly]
 		
 		
-		var targ:*=FPLocator.lookupDisplayObject({'chain':item});
 		
+		// combobox , listbase , Hslider , vslider  ,  
 		
-		switch(eventType){
-			case 'all':
-				
-				
-				for each(var elem:* in typesAllowed){
-				
-				for each(var type:* in elem[1]){
-					if(targ is type){
-						targ.removeEventListener(elem[0] , FPRecorder.handleEvent);
-						mutedItems.push({'eventType':elem[0] , 'item':item});
-						break;
-					}
-					
-				}
-				
-			}
-				
-				mutedItems.push({'eventType' : 'click' , 'item': item , 'strict':strict});
-				mutedItems.push({'eventType' : 'doubleClick' , 'item': item , 'strict':strict});
-				
-				//mutedItems.push({'eventType' : 'link' , 'item': item});
-				mutedItems.push({'eventType' : 'keyDown' , 'item': item, 'strict':strict});
-				break;
+		try{
+		var flex4ComboBox:*=getDefinitionByName('spark.components.ComboBox');
+		typesAllowed.push({'item':flex4ComboBox , 'itemList':[] , 'eventType':['change']});
+		componentMap[ComboBox]=flex4ComboBox;
+		
+		}
+		catch(e:Error){
 			
-			default:
-			{
-				mutedItems.push({'eventType' : eventType , 'item': item, 'strict':strict});
-				break;
-				
-			}
-				
 		}
 		
-	}
-	
-	public static function unmuteItem(item:* , eventType:String):void{
-		// if eventType is set to 'all' the item will be unmuted for all the possible event recordings
-		
-		
-		//trace(mutedItems.length , "length muted items");
-		
-		var i:Number;
-		
-		switch(eventType){
+		try{
+			var flex4SliderBase:*=getDefinitionByName('spark.components.supportClasses.SliderBase');
+			typesAllowed.push({'item':flex4SliderBase , 'itemList':[] , 'eventType':['change']});
+			componentMap[Slider]=flex4SliderBase;
 			
-			case 'all':
-				
-				
-				for(i=0;i<mutedItems.length;){
-					if(mutedItems[i].item==item){
-						
-		
-						mutedItems.splice(i , 1);
-					}
-					else
-						i++;
-			}
+		}
+		catch(e:Error){
 			
-			default:
-				for(i=0;i<mutedItems.length;){
-					if(mutedItems[i].item==item&&mutedItems[i].eventType==eventType){
-						
+		}
 		
-						mutedItems.splice(i , 1);
-						
-						
-					}
-					else
-						i++;
-				}
-				
-				break;
-				
-				
+		try{
+			var flex4ListBase:*=getDefinitionByName('spark.components.supportClasses.ListBase');
+			typesAllowed.push({'item':flex4ListBase , 'itemList':[] , 'eventType':['change']});
+			componentMap[ListBase]=flex4ListBase;
+			
+			
+		}
+		catch(e:Error){
+			
+		}
+		
+		try{
+		// similar mapping can be done in future depending on the component usage
+		componentMap[List]=getDefinitionByName('spark.components.List');
+		
+		eventMap[IndexChangedEvent]=getDefinitionByName('spark.events.IndexChangeEvent');
+		
+		}
+		catch(e:Error){
+			
 		}
 		
 		
 	}
-	
-	public static function muteEvent(event:* , eventType:String):void{
-		//if eventType set to 'all' then mute for all eventTypes for the event of type 'event'
-		
-		mutedEvents.push({'event':event , 'eventType':eventType});
-		
-		
-		
-		
-	}
-	
-	public static function unmuteEvent(event:* , eventType:String):void{
-		
-		for(var i:Number=0;i<mutedEvents.length;){
-			if(mutedEvents[i].event == event &&(mutedEvents[i].eventType==eventType || mutedEvents[i].eventType=='all')){
-				
-				mutedEvents.splice(i , 1);
-				
-				
-			}
-			else
-				i++;
-		}
-		
-	}
-	
-	
 
-    public static function handleEvent(e:*):void{
-		
+    public static function handleEvent(e:*):void {
       var targ:* = e.target;
       var _this:* = FPRecorder;
-      var chain:String = FPLocator.generateLocator(targ);
-	  
-	  var opts:Object;
-	  
-	  var condTest:Boolean=true;
-	  
-	  var elem:*;
-	  
-	  // checking if the event caught against the item has been requested to be muted
-	  for each(elem in mutedItems){
-		  
-		  
-		  // (chain.indexOf(elem.item)==0  returns true if the item locator stored in 'elem.item' is parent of object described by locator 'chain'
-		  if(((chain.indexOf(elem.item)==0&&!elem.strict)||(chain==elem.item&&elem.strict))  && elem.eventType==e.type)
-			  return;				//don;t record the keys since the item is muted against events of type 'elem.eventType'
-		  
-	  }
+      var chain:String=FPLocator.generateLocator(targ);
 	  
 	  
-	  //checking if the event caught has been requested to be muted
-	  for each(elem in mutedEvents){
-		  
-		  
-		  
-		  if( e is elem.event && (elem.eventType==e.type || e.type=='all'))
-			  return;
-		  
-	  }
+	  
+	  /*try{
+		  targ=e.currentTarget;
+		  chain=FPLocator.generateLocator(targ);
+	  
+	  }catch(er:Error){
+		  trace("got some error");
+		  targ=e.target;
+		  chain=FPLocator.generateLocator(targ);
+	  }*/
 	  
 	  
-	  FP::complete  {
 	  
-	  switch(true){
-		  
-		  case (e is AdvancedDataGridEvent &&  e.type==AdvancedDataGridEvent.ITEM_OPEN) :
-			  condTest=false;
-			  opts = new Object;
-			  opts.item=e.item;
-			  opts.opening=true;
-			  opts.bubbles=e.bubbles;
-			  opts.cancelable=e.cancelable;
-			  _this.generateAction('adgItemOpen', targ , opts);
-			  _this.setNoClickZone();
-			  break;
-		  
-		  
-		  case (e is AdvancedDataGridEvent && e.type==AdvancedDataGridEvent.ITEM_CLOSE) :
-			  condTest=false;
-			  opts = new Object;
-			  opts.item=e.item;
-			  opts.opening=false;
-			  opts.bubbles=e.bubbles;
-			  opts.cancelable=e.cancelable;	
-			  _this.generateAction('adgItemClose', targ , opts);
-			  _this.setNoClickZone();
-			  break;
-		  
-		  
-		  case (e is AdvancedDataGridEvent && e.type==AdvancedDataGridEvent.COLUMN_STRETCH) :
-			  condTest=false;
-			  opts=new Object;
-			  opts.bubbles=e.bubbles;
-			  opts.cancelable=e.cancelable;
-			  opts.localX=Number(e.localX);
-			  opts.columnIndex=e.columnIndex;
-			  opts.dataField=e.dataField;
-			  opts.rowIndex=e.rowIndex;
-			  _this.generateAction('adgColumnStretch', targ , opts);
-			  _this.setNoClickZone();
-			  break;
-		  
-		  
-		  case (e is AdvancedDataGridEvent && e.type==AdvancedDataGridEvent.HEADER_RELEASE) :
-			  condTest=false;
-			  opts = new Object;
-			  opts.bubbles=e.bubbles;
-			  opts.cancelable=e.cancelable;
-			  opts.columnIndex = e.columnIndex;
-			  opts.dataField= e.dataField;
-			  opts.removeColumnFromSort=e.removeColumnFromSort;
-			  _this.generateAction('adgHeaderRelease', targ , opts);
-			  _this.setNoClickZone();
-			  break;
-		  
-		  
-		  case (e is AdvancedDataGridEvent && e.type==AdvancedDataGridEvent.ITEM_EDIT_END) :
-			  condTest=false;
-			  opts = new Object;
-			  opts.bubbles=e.bubbles;
-			  opts.cancelable=e.cancelable;
-			  opts.columnIndex = e.columnIndex;
-			  opts.rowIndex=e.rowIndex;
-			  opts.dataField= e.dataField;
-			  opts.reason=e.reason;
-			  opts.newValue=e.target.itemEditorInstance[e.target.columns[e.columnIndex].editorDataField];
-			  _this.generateAction('adgItemEdit', targ , opts);
-			  _this.setNoClickZone();
-			  break;
-		  
-		  
-		  case (e is IndexChangedEvent && e.type==IndexChangedEvent.HEADER_SHIFT) :
-			  condTest=false;
-			  opts = new Object;
-			  
-			  opts.newIndex=e.newIndex;
-			  opts.oldIndex=e.oldIndex;
-			  opts.bubbles=e.bubbles;
-			  opts.cancelable=e.cancelable;
-			  _this.generateAction('adgHeaderShift', targ , opts);
-			  _this.setNoClickZone();
-			  break;
-		  
-		  case ((e is ListEvent && ( targ is ComboBox || targ is ListBase || targ is AdvancedListBase) ) && e.type==ListEvent.CHANGE) :
-			  
-			  condTest=false;
-			  _this.generateAction('select', targ);
-			  _this.resetRecentTarget('change', e);
-			  break;
-	  }
+        var opts:Object;
+        var condTest:Boolean=true;
       
-	}
-	  if(condTest)
-		switch (true) {
-       
-		  
-		case (e is SliderEvent && e.type==SliderEvent.CHANGE) :
-				_this.generateAction('sliderChange',targ);
-				_this.setNoClickZone();
-				break;
-		
-			
-		case (e is CalendarLayoutChangeEvent && e.type==CalendarLayoutChangeEvent.CHANGE) :
-				_this.generateAction('dateChange',targ);
-				_this.setNoClickZone();
-				break;
-		
-		
-        // ComboBox changes
-		case (e is DataGridEvent && e.type==DataGridEvent.COLUMN_STRETCH ) :
-				opts=new Object;
-				opts.localX=Number(e.localX);
-				opts.columnIndex=e.columnIndex;
-				opts.rowIndex=e.rowIndex;
-				_this.generateAction('dgColumnStretch', targ , opts);
-				_this.setNoClickZone();
-				break;
-		
-		
-			
-		
-		case ( e is DataGridEvent && e.type==DataGridEvent.HEADER_RELEASE) :
-			
-			
-			//  storing some of the values from event and to remain on the safe side if event had been custom generated . . .
-				opts=new Object;
-				opts.columnIndex=e.columnIndex;
-				opts.dataField=e.dataField;
-				opts.rowIndex=e.rowIndex;
-				opts.reason=e.reason;
-				opts.cancelable=e.cancelable;
-				opts.sortDescending=targ.columns[e.columnIndex].sortDescending;
-				_this.generateAction('dgHeaderRelease' , targ , opts);
-				_this.setNoClickZone();
-				break;
-		
-		
-		
-			
-		case (e is DataGridEvent && e.type==DataGridEvent.ITEM_EDIT_END) :
-				opts=new Object;
-				opts.newValue=e.target.itemEditorInstance[e.target.columns[e.columnIndex].editorDataField];
-				
-				opts.dataField=e.dataField;
-				opts.rowIndex=e.rowIndex;
-				
-				opts.reason=e.reason;
-				opts.cancelable=e.cancelable;
-				_this.generateAction('dgItemEdit', targ , opts);
-				_this.setNoClickZone();
-				
-				break;
-		
-		
-		
-		case (e is DragEvent && e.type==DragEvent.DRAG_START) :
-			
-			opts={
-				bubbles : e.bubbles ,
-				cancelable : e.cancelable ,
-				action : e.action ,
-				altKey : e.altKey ,
-				shiftKey : e.shiftKey ,
-				ctrlKey : e.ctrlKey  , 
-				stageX : e.stageX ,
-				stageY : e.stageY ,
-				localX : e.localX ,
-				localY : e.localY ,
-				selectedIndices : targ.selectedIndices 
-		};
-			_this.generateAction('dragStart', targ , opts);
-			_this.setNoClickZone();
-			
-			
-			
-			break;
-		
-		case (e is DragEvent && e.type==DragEvent.DRAG_DROP) :
-			
-			
-			opts={
-				bubbles : e.bubbles ,
-				cancelable : e.cancelable ,
-				action : e.action ,
-				altKey : e.altKey ,
-				shiftKey : e.shiftKey ,
-				ctrlKey : e.ctrlKey  , 
-				stageX : e.stageX ,
-				stageY : e.stageY ,
-				localX : e.localX ,
-				localY : e.localY
-				
-		};
-			
-			
-			
-			
-			_this.generateAction('itemDragDrop', targ , opts);
-			
-			
-			break;
-		
-			
-        case ((e is ListEvent && ( targ is ComboBox || targ is ListBase ) ) && e.type==ListEvent.CHANGE) :
+        FP::complete  {
+          switch(true) {
+              case (e is AdvancedDataGridEvent &&  e.type==AdvancedDataGridEvent.ITEM_OPEN) :
+                  condTest=false;
+                  opts = new Object;
+                  opts.item=e.item;
+                  opts.opening=true;
+                  opts.bubbles=e.bubbles;
+                  opts.cancelable=e.cancelable;
+                  _this.generateAction('adgItemOpen', targ , opts);
+                  _this.setNoClickZone();
+                  break;
           
-			_this.generateAction('select', targ);
-          _this.resetRecentTarget('change', e);
-          break;
-			
-		case (e is KeyboardEvent && e.type==KeyboardEvent.KEY_DOWN) :
-			// If we don't ignore 0 we get a translation error
-			// as it generates a non unicode character
-			
-			
-			
-				if (e.charCode != 0) 
-					_this.keyDownString += String.fromCharCode(e.charCode);
-				
-				break;
-        // Mouse/URL clicks
-		
-        default:
-          // If the last event was a keyDown, write out the string
-          // that's been saved from the sequence of keyboard events
-          if (_this.lastEventType == KeyboardEvent.KEY_DOWN) {
-			  
-			 
-			  
-			  
-            var locate:* = targ;
-            //If we have a prebuild last locator, use it
-            //Since the current isn't actually the node we want
-            //it's the following node that generated the onchange
-            if (_this.lastEventLocator){
-                locate = _this.lastEventLocator;
-            }
-            _this.generateAction('type', locate, { text: _this.keyDownString });
-            // Empty out string storage
-            _this.keyDownString = '';
-          }
-          // Ignore clicks on ComboBox/List items that result
-          // in ListEvent.CHANGE events -- the list gets blown
-          // away, and can't be looked up by the generated locator
-          // anyway, so we have to use this event instead
-          else
-			  if (_this.lastEventType == ListEvent.CHANGE) {
-			  
-			  
-			  
-            if (_this.recentTarget.change && _this.recentTarget is List) {
-              return;
-            }
-			  
-			  else
-				  if(_this.recentTarget.sliderChange  && _this.recentTarget is Slider){
-					  return;
-					  
-				  }
-          }
-          // Avoid multiple clicks on the same target
-          if (_this.recentTarget == e.target) {
-            // Check for previous TextEvent.LINK
-            if (_this.lastEventType != MouseEvent.DOUBLE_CLICK) {
-              // Just throw this mofo away
-              return;
-            }
-          }
-		  
-		  
-          var t:String = e.type == MouseEvent.DOUBLE_CLICK ?
-              'doubleClick' : 'click';
-			  if(!_this.noClickTime){
-				  
-				  
-									//  Checking if any item has been muted against clicks or double clicks
-		
-				    
-				  
-				
-				_this.generateAction(t, targ);
-						_this.resetRecentTarget('click', e);
-						break;	
-					
-				
-				
-				
-			
-			  }
-      }
-
-      // Remember the last event type for saving sequences of
-      // keyboard events
-      _this.lastEventType = e.type;
-      _this.lastEventLocator = FPLocator.generateLocator(targ);
-
-      //FPLogger.log(e.toString());
-      //FPLogger.log(e.target.toString());
-    }
-
-    private static function resetRecentTarget(t:String, e:*):void {
-      var _this:* = FPRecorder;
-      // Remember this target, avoid multiple clicks on it
-      _this.recentTarget[t] = e.target;
-      // Cancel any old setTimeout still hanging around
-      if (_this.recentTargetTimeout[t]) {
-        clearTimeout(_this.recentTargetTimeout[t]);
-      }
-      // Clear the recentTarget after 1 sec.
-      _this.recentTargetTimeout[t] = setTimeout(function ():void {
-        _this.recentTarget[t] = null;
-        _this.recentTargetTimeout[t] = null;
-      }, 1);
-    }
-	
-	private static function setNoClickZone():void{
-		var _this:* = FPRecorder;
-		
-		if(!FPRecorder.recordExtraClicks){
-		if(_this.noClick){
-			clearTimeout(_this.noClick);
-			
-		}
-		_this.noClickTime=true;
-		
-		
-		_this.noClick=setTimeout(function():void{
-			_this.noClickTime=false;
-			
-		},5);
-		}
-	}
-
-    private static function generateAction(t:String, targ:*,
-        opts:Object = null):void {
-		
-		  var trybool:Boolean=false;
-			
-      var chain:String;
-      //Type actions send an already build locator string
-      if (typeof(targ) == 'object'){
-          chain = FPLocator.generateLocator(targ);
-      }
-      else { chain = targ; }
-
-      //Figure out what kind of displayObj were dealing with
-      var classInfo:XML = describeType(targ);
-      classInfo =  describeType(targ);
-      var objType:String = classInfo.@name.toString();
-
-      var res:Object = {
-        method: t,
-        chain: chain
-      };
-      var params:Object = {};
-
-      //if we have a flex accordion
-      if (objType.indexOf('Accordion') != -1){
-        if (objType.indexOf('AccordionHeader') != -1){
-          params.label = targ.label;
-        }
-        else {
-          params.label = targ.getHeaderAt(0).label;
+              case (e is AdvancedDataGridEvent && e.type==AdvancedDataGridEvent.ITEM_CLOSE) :
+                  condTest=false;
+                  opts = new Object;
+                  opts.item=e.item;
+                  opts.opening=false;
+                  opts.bubbles=e.bubbles;
+                  opts.cancelable=e.cancelable; 
+                  _this.generateAction('adgItemClose', targ , opts);
+                  _this.setNoClickZone();
+                  break;
+          
+              case (e is AdvancedDataGridEvent && e.type==AdvancedDataGridEvent.COLUMN_STRETCH) :
+                  condTest=false;
+                  opts=new Object;
+                  opts.bubbles=e.bubbles;
+                  opts.cancelable=e.cancelable;
+                  opts.localX=Number(e.localX);
+                  opts.columnIndex=e.columnIndex;
+                  opts.dataField=e.dataField;
+                  opts.rowIndex=e.rowIndex;
+                  _this.generateAction('adgColumnStretch', targ , opts);
+                  _this.setNoClickZone();
+                  break;
+          
+              case (e is AdvancedDataGridEvent && e.type==AdvancedDataGridEvent.HEADER_RELEASE) :
+                  condTest=false;
+                  opts = new Object;
+                  opts.bubbles=e.bubbles;
+                  opts.cancelable=e.cancelable;
+                  opts.columnIndex = e.columnIndex;
+                  opts.dataField= e.dataField;
+                  opts.removeColumnFromSort=e.removeColumnFromSort;
+                  _this.generateAction('adgHeaderRelease', targ , opts);
+                  _this.setNoClickZone();
+                  break;
+          
+              case (e is AdvancedDataGridEvent && e.type==AdvancedDataGridEvent.ITEM_EDIT_END) :
+                  condTest=false;
+                  opts = new Object;
+                  opts.bubbles=e.bubbles;
+                  opts.cancelable=e.cancelable;
+                  opts.columnIndex = e.columnIndex;
+                  opts.rowIndex=e.rowIndex;
+                  opts.dataField= e.dataField;
+                  opts.reason=e.reason;
+                  opts.newValue=e.target.itemEditorInstance[e.target.columns[e.columnIndex].editorDataField];
+                  _this.generateAction('adgItemEdit', targ , opts);
+                  _this.setNoClickZone();
+                  break;
+          
+              case (e is IndexChangedEvent && e.type==IndexChangedEvent.HEADER_SHIFT) :
+                  condTest=false;
+                  opts = new Object;
+              
+                  opts.newIndex=e.newIndex;
+                  opts.oldIndex=e.oldIndex;
+                  opts.bubbles=e.bubbles;
+                  opts.cancelable=e.cancelable;
+                  _this.generateAction('adgHeaderShift', targ , opts);
+                  _this.setNoClickZone();
+                  break;
+          
+              case (((e is ListEvent || e is IndexChangedEvent || e is eventMap[IndexChangedEvent]) && ( targ is ComboBox || targ is componentMap[ComboBox] || targ is ListBase || targ is componentMap[ListBase] || targ is AdvancedListBase) ) && e.type==ListEvent.CHANGE) :
+					              
+                  condTest=false;
+                  _this.generateAction('select', targ);
+                  _this.resetRecentTarget('change', e);
+                  break;
         }
       }
+    
+      if (condTest) {
+        switch (true) {
+          case (e is SliderEvent && e.type==SliderEvent.CHANGE) :
+                _this.generateAction('sliderChange',targ);
+                _this.setNoClickZone();
+                break;
+            
+          case (e is CalendarLayoutChangeEvent && e.type==CalendarLayoutChangeEvent.CHANGE) :
+              _this.generateAction('dateChange',targ);
+              _this.setNoClickZone();
+              break;
+        
+          // ComboBox changes
+          case (e is DataGridEvent && e.type==DataGridEvent.COLUMN_STRETCH ) :
+              opts=new Object;
+              opts.localX=Number(e.localX);
+              opts.columnIndex=e.columnIndex;
+              opts.rowIndex=e.rowIndex;
+              _this.generateAction('dgColumnStretch', targ , opts);
+              _this.setNoClickZone();
+              break;
+        
+          case (e is DataGridEvent && e.type==DataGridEvent.HEADER_RELEASE) :        
+              //storing some of the values from event and to remain on the safe 
+              //side if event had been custom generated . . .
+              opts=new Object;
+              opts.columnIndex=e.columnIndex;
+              opts.dataField=e.dataField;
+              opts.rowIndex=e.rowIndex;
+              opts.reason=e.reason;
+              opts.cancelable=e.cancelable;
+              opts.sortDescending=targ.columns[e.columnIndex].sortDescending;
+              _this.generateAction('dgHeaderRelease' , targ , opts);
+              _this.setNoClickZone();
+              break;
 
-      var p:String;
-      for (p in opts) {
-        params[p] = opts[p]
+          case (e is DataGridEvent && e.type==DataGridEvent.ITEM_EDIT_END) :
+              opts=new Object;
+              opts.newValue=e.target.itemEditorInstance[e.target.columns[e.columnIndex].editorDataField];
+          
+              opts.dataField=e.dataField;
+              opts.rowIndex=e.rowIndex;
+          
+              opts.reason=e.reason;
+              opts.cancelable=e.cancelable;
+              _this.generateAction('dgItemEdit', targ , opts);
+              _this.setNoClickZone();
+              break;
+        
+          case (e is DragEvent && e.type==DragEvent.DRAG_START) :
+              opts={
+                  bubbles : e.bubbles ,
+                  cancelable : e.cancelable ,
+                  action : e.action ,
+                  altKey : e.altKey ,
+                  shiftKey : e.shiftKey ,
+                  ctrlKey : e.ctrlKey  , 
+                  stageX : e.stageX ,
+                  stageY : e.stageY ,
+                  localX : e.localX ,
+                  localY : e.localY ,
+                  selectedIndices : targ.selectedIndices 
+              };
+              _this.generateAction('dragStart', targ , opts);
+              _this.setNoClickZone();
+              break;
+
+          case (e is DragEvent && e.type==DragEvent.DRAG_DROP) :
+              opts={
+                  bubbles : e.bubbles ,
+                  cancelable : e.cancelable ,
+                  action : e.action ,
+                  altKey : e.altKey ,
+                  shiftKey : e.shiftKey ,
+                  ctrlKey : e.ctrlKey  , 
+                  stageX : e.stageX ,
+                  stageY : e.stageY ,
+                  localX : e.localX ,
+                  localY : e.localY
+              };
+              _this.generateAction('itemDragDrop', targ , opts);          
+              break;
+
+          case (((e is ListEvent || e is IndexChangedEvent || e is eventMap[IndexChangedEvent])&& ( targ is ComboBox || targ is componentMap[ComboBox] || targ is ListBase || targ is componentMap[ListBase]) ) && e.type==ListEvent.CHANGE) :
+			  
+              _this.generateAction('select', targ);
+              _this.resetRecentTarget('change', e);
+              break;
+    
+          case (e is KeyboardEvent && e.type==KeyboardEvent.KEY_DOWN) :
+              // If we don't ignore 0 we get a translation error
+              // as it generates a non unicode character
+              if (e.charCode != 0) {
+                _this.keyDownString += String.fromCharCode(e.charCode);
+              }
+              break;
+                
+            // Mouse/URL clicks
+            default:
+              // If the last event was a keyDown, write out the string
+              // that's been saved from the sequence of keyboard events
+              if (_this.lastEventType == KeyboardEvent.KEY_DOWN) {
+                var locate:* = targ;
+                //If we have a prebuild last locator, use it
+                //Since the current isn't actually the node we want
+                //it's the following node that generated the onchange
+                if (_this.lastEventLocator) {
+                    locate = _this.lastEventLocator;
+                }
+                _this.generateAction('type', locate, { text: _this.keyDownString });
+                // Empty out string storage
+                _this.keyDownString = '';
+              }
+              // Ignore clicks on ComboBox/List items that result
+              // in ListEvent.CHANGE events -- the list gets blown
+              // away, and can't be looked up by the generated locator
+              // anyway, so we have to use this event instead
+              else if (_this.lastEventType == ListEvent.CHANGE) {
+                if (_this.recentTarget.change && (_this.recentTarget is List || targ is componentMap[List])) {
+                  return;
+                }
+                else if (_this.recentTarget.sliderChange  && _this.recentTarget is Slider) {
+                  return;
+                }
+              }
+              
+              // Avoid multiple clicks on the same target
+              if (_this.recentTarget == e.target) {
+                // Check for previous TextEvent.LINK
+                if (_this.lastEventType != MouseEvent.DOUBLE_CLICK) {
+                  // Just throw this mofo away
+                  return;
+                }
+              }
+          
+              var t:String = e.type == MouseEvent.DOUBLE_CLICK ?
+                  'doubleClick' : 'click';
+              
+              if (!_this.noClickTime) {
+                _this.generateAction(t, targ);
+                _this.resetRecentTarget('click', e);
+              }
+          }
+
+          // Remember the last event type for saving sequences of
+          // keyboard events
+          _this.lastEventType = e.type;
+          _this.lastEventLocator = FPLocator.generateLocator(targ);
+
+          //FPLogger.log(e.toString());
+          //FPLogger.log(e.target.toString());
+        }
       }
       
-      switch (t) {
-        case 'click':
-          break;
-        case 'doubleClick':
-          break;
-        case 'select':
-          var sel:* = targ.selectedItem;
-		      var labelField:String;
-    		  FP::complete  { 
-      		  if (targ is AdvancedDataGridBase || targ is DataGridBase) {
-      		    try{
-        			  res.selectedItem=targ.dataProvider[targ.selectedIndex];
-        		  }
-        		  catch(e:Error){
-        			  trace(e);
-        		  }
-        		  res.selectedIndex=targ.selectedIndex;  
-      		  }
-      		  else {
-      			  labelField = targ.labelField ?
-      				  targ.labelField : 'label';
-      			  params.label = sel[labelField];
-      		  }
-      		}
-		
-      		if (!FP::complete)  {
-      			if(targ is DataGridBase){
-      				try{
-      					res.selectedItem=targ.dataProvider[targ.selectedIndex];
-      				}
-      				catch(e:Error){
-      					trace(e);
-      				}
-      				res.selectedIndex=targ.selectedIndex;  
-      			}
-      			else {
-      				labelField = targ.labelField ?
-      					targ.labelField : 'label';
-      				params.label = sel[labelField];
-      			}
+      private static function resetRecentTarget(t:String, e:*):void {
+        var _this:* = FPRecorder;
+        // Remember this target, avoid multiple clicks on it
+        _this.recentTarget[t] = e.target;
+        // Cancel any old setTimeout still hanging around
+        if (_this.recentTargetTimeout[t]) {
+          clearTimeout(_this.recentTargetTimeout[t]);
+        }
+        // Clear the recentTarget after 1 sec.
+        _this.recentTargetTimeout[t] = setTimeout(function ():void {
+          _this.recentTarget[t] = null;
+          _this.recentTargetTimeout[t] = null;
+          }, 1);
+        }
+    
+        private static function setNoClickZone():void {
+            var _this:* = FPRecorder;
+        
+            if (!FPRecorder.recordExtraClicks) {
+            if (_this.noClick) {
+                clearTimeout(_this.noClick);
+            }
+            _this.noClickTime=true;
+            _this.noClick=setTimeout(function():void {
+                  _this.noClickTime=false;
+              }, 5);
+            }
+        }
+
+      private static function generateAction(t:String, targ:*,
+          opts:Object = null):void {
+          var trybool:Boolean=false;
+          var chain:String;
+          //Type actions send an already build locator string
+          if (typeof(targ) == 'object') {
+            chain = FPLocator.generateLocator(targ);
+          }
+          else { chain = targ; }
+
+          //Figure out what kind of displayObj were dealing with
+          var classInfo:XML = describeType(targ);
+          classInfo =  describeType(targ);
+          var objType:String = classInfo.@name.toString();
+
+          var res:Object = {
+            method: t,
+            chain: chain
+          };
+          var params:Object = {};
+
+          //if we have a flex accordion
+          if (objType.indexOf('Accordion') != -1) {
+            if (objType.indexOf('AccordionHeader') != -1) {
+              params.label = targ.label;
+            }
+            else {
+              params.label = targ.getHeaderAt(0).label;
+            }
+          }
+
+          var p:String;
+          for (p in opts) {
+            params[p] = opts[p]
+          }
+      
+          switch (t) {
+            case 'click':
+              break;
+            case 'doubleClick':
+              break;
+            case 'select':
+				var isSelectedItems:Boolean=false;
+				var sel:*;
+				
+				
+				// In case of components like ComboBox(in Flex3) property selectedItems is not present but is there in case of other List based components and in flex4 combobox .
+				if('selectedItems' in targ){
+					isSelectedItems=true;
+					sel=targ.selectedItems;
+					res.selectedItems=sel;
 				}
-          break;
-        case 'type':
-          break;
-	    	case 'sliderChange':
-    			params.value=targ.value;
-    			break;
-    		case 'dateChange':
-    			params.value=targ.selectedDate.time;
-			
-    			break;
-    		case 'itemDragDrop' :
-    			// storing the information about the start of drag . . .
-    			res.start=draggerParams;
-			  break;
-	
-      }
-	  
-      for (p in params) {		  
-        res.params = params;
-        break;
-	  }
-	  
-	  if (t=='dragStart') {
-		  
-		  //  draggerParams is set with the value representing the state during the start of drag 
-		  //  draggerParams will be used later with the dispatch of event DragEvent.DRAG_DROP
-		  
-		  draggerParams=res;
-		  return;
-	  }
-	  
-	  if (t=='itemDragDrop') {
-		  trace("saved");
-		  test=res;
-	  }
+				else{
+					sel=targ.selectedItem;
+					res.selectedItem=sel;
+				}
+				
+				
+				// If labelField is not equal to 'label' then the item to be selected is compared with data in labelField property .
+				var labelField:* = targ.labelField ? targ.labelField : 'label';
+				params.labelField=labelField;
+			  
+			  
+			  
+              break;
+            case 'type':
+              break;
+            case 'sliderChange':
+              params.value=targ.value;
+              break;
+            case 'dateChange':
+              params.value=targ.selectedDate.time;
+              break;
+            case 'itemDragDrop' :
+              // storing the information about the start of drag . . .
+              res.start=draggerParams;
+              break;
+          }
+      
+          for (p in params) {       
+            res.params = params;
+            break;
+          }
+      
+          if (t=='dragStart') {       
+              //  draggerParams is set with the value representing the state during the start of drag 
+              //  draggerParams will be used later with the dispatch of event DragEvent.DRAG_DROP
+              draggerParams=res;
+              return;
+          }
+      
+          if (t=='itemDragDrop') {
+              test=res;
+          }
 
-	  var r:* = ExternalInterface.call('fp_recorderAction', res);
-      if (!r) {
-        FPLogger.log(res);
-        FPLogger.log('(FlexPilot Flash bridge not found.)');
+          var r:* = ExternalInterface.call('fp_recorderAction', res);
+		  
+		  if(t=='select'){
+		  //trace("saved" , t);
+		  test=res;}
+		  
+          if (!r) {
+            //FPLogger.log(res);
+            //FPLogger.log('(FlexPilot Flash bridge not found.)');
+          }
       }
-    }
-
   }
 }
 

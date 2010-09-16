@@ -8,8 +8,6 @@ package util
 	import mx.controls.AdvancedDataGrid;
 	import mx.controls.AdvancedDataGridBaseEx;
 	import mx.controls.DataGrid;
-	import mx.controls.Text;
-	import mx.controls.TextInput;
 	import mx.controls.advancedDataGridClasses.AdvancedDataGridListData;
 	import mx.controls.listClasses.IDropInListItemRenderer;
 	import mx.core.IPropertyChangeNotifier;
@@ -112,9 +110,8 @@ package util
 			
 			setTimeout(function():void{
 				
-				trace(obj.itemEditorInstance , obj.editedItemRenderer);
 				
-				TextInput(obj.itemEditorInstance).text=newData;
+				obj.itemEditorInstance.text=newData;
 				
 				var property:String = obj.columns[column].dataField;
 				var data:Object = obj.itemEditorInstance.data;
