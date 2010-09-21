@@ -208,8 +208,15 @@ package org.flex_pilot {
     }
 
     public static function contextIsApplication():Boolean {
-		
-	  var sparkApplication:*=ApplicationDomain.currentDomain.getDefinition('spark.components.Application')
+		var sparkApplication:*
+		try{
+	  		sparkApplication=ApplicationDomain.currentDomain.getDefinition('spark.components.Application');
+		}
+		catch(e:Error){
+			return config.context is Application;
+			
+		}
+	  
       return ( config.context is Application || config.context is sparkApplication );
     }
 
