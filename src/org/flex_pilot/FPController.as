@@ -501,7 +501,7 @@ package org.flex_pilot {
 				  //Event Dispatcher HERE
 				  
 				  if(isSpark)
-					  ;
+					  Events.triggerIndexChangeEvent(obj , 'change');
 					  else
 					  Events.triggerIndexChangedEvent(obj , IndexChangedEvent.CHANGE);
 					  
@@ -581,7 +581,8 @@ package org.flex_pilot {
   		obj.value=params.value;
 		if(isSparkComponent(obj))
 			Events.triggerEventEvent(obj , 'change');
-  		//Events.triggerSliderEvent(obj , 'change');
+		else
+  		Events.triggerSliderEvent(obj , 'change');
   	}
 	
   	public static function dateChange(params:Object):void{
