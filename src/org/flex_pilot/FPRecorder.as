@@ -669,8 +669,8 @@ package org.flex_pilot {
 		  test=res;}
 		  
           if (!r) {
-            //FPLogger.log(res);
-            //FPLogger.log('(FlexPilot Flash bridge not found.)');
+            FPLogger.log(res);
+           FPLogger.log('(FlexPilot Flash bridge not found.)');
           }
       }
   }
